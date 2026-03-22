@@ -23,14 +23,14 @@ jobs:
               with:
                   dotnet-version: 6.0.x
 
-            - name: Restore
-              run: dotnet restore ./EldenBingo.sln
+            - name: Restore standalone server
+              run: dotnet restore ./EldenBingoServerStandalone/EldenBingoServerStandalone.csproj -p:CheckEolTargetFramework=false
 
-            - name: Build
-              run: dotnet build ./EldenBingo.sln -c Release --no-restore
+            - name: Build standalone server
+              run: dotnet build ./EldenBingoServerStandalone/EldenBingoServerStandalone.csproj -c Release --no-restore -p:CheckEolTargetFramework=false
 
             - name: Publish standalone server
-              run: dotnet publish ./EldenBingoServerStandalone/EldenBingoServerStandalone.csproj -c Release -o ./artifacts/publish --no-build
+              run: dotnet publish ./EldenBingoServerStandalone/EldenBingoServerStandalone.csproj -c Release -o ./artifacts/publish --no-build -p:CheckEolTargetFramework=false
 
             - name: Upload publish artifact
               uses: actions/upload-artifact@v4

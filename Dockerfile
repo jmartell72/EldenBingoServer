@@ -2,8 +2,8 @@ FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
 WORKDIR /src
 
 COPY . .
-RUN dotnet restore ./EldenBingo.sln
-RUN dotnet publish ./EldenBingoServerStandalone/EldenBingoServerStandalone.csproj -c Release -o /app/publish --no-restore
+RUN dotnet restore ./EldenBingoServerStandalone/EldenBingoServerStandalone.csproj -p:CheckEolTargetFramework=false
+RUN dotnet publish ./EldenBingoServerStandalone/EldenBingoServerStandalone.csproj -c Release -o /app/publish --no-restore -p:CheckEolTargetFramework=false
 
 FROM mcr.microsoft.com/dotnet/runtime:6.0 AS runtime
 WORKDIR /app
