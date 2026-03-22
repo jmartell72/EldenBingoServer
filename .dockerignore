@@ -7,5 +7,4 @@
 **/*.user
 **/*.suo
 **/*.pdb
-**/*.snk
 **/log.txt
