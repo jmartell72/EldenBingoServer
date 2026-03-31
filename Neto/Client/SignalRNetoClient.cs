@@ -75,16 +75,49 @@ namespace Neto.Client
 
         public async Task<ConnectionResult> Connect(string address, int port)
         {
-            var endpoint = EndPointFromAddress(address, port, out var error);
-            if (endpoint == null)
+            if (string.IsNullOrWhiteSpace(address))
             {
-                FireOnError(error);
+                FireOnError("Invalid address");
                 return ConnectionResult.Denied;
             }
-            return await Connect(endpoint);
+
+            Uri hubUri;
+            try
+            {
+                var raw = address.Trim();
+                if (Uri.TryCreate(raw, UriKind.Absolute, out var absolute) &&
+                    (absolute.Scheme == Uri.UriSchemeHttp || absolute.Scheme == Uri.UriSchemeHttps))
+                {
+                    var builder = new UriBuilder(absolute)
+                    {
+                        Path = "/neto"
+                    };
+                    if (builder.Port <= 0)
+                        builder.Port = port;
+                    hubUri = builder.Uri;
+                }
+                else
+                {
+                    var scheme = port == 443 ? Uri.UriSchemeHttps : Uri.UriSchemeHttp;
+                    hubUri = new UriBuilder(scheme, raw, port, "neto").Uri;
+                }
+            }
+            catch (Exception e)
+            {
+                FireOnError($"Invalid address: {e.Message}");
+                return ConnectionResult.Denied;
+            }
+
+            return await Connect(hubUri);
         }
 
         public async Task<ConnectionResult> Connect(IPEndPoint ipEndpoint)
+        {
+            var uri = new UriBuilder(Uri.UriSchemeHttp, ipEndpoint.Address.ToString(), ipEndpoint.Port, "neto").Uri;
+            return await Connect(uri);
+        }
+
+        private async Task<ConnectionResult> Connect(Uri hubUri)
         {
             if (_connection?.State == HubConnectionState.Connected)
             {
@@ -95,9 +128,8 @@ namespace Neto.Client
             CancellationToken = new CancellationTokenSource();
             _disconnectRaised = false;
 
-            var uri = $"http://{ipEndpoint.Address}:{ipEndpoint.Port}/neto";
             _connection = new HubConnectionBuilder()
-                .WithUrl(uri)
+                .WithUrl(hubUri)
                 .WithAutomaticReconnect()
                 .Build();
 
@@ -116,7 +148,7 @@ namespace Neto.Client
 
             try
             {
-                FireOnStatus($"Connecting to {ipEndpoint}...");
+                FireOnStatus($"Connecting to {hubUri.Host}:{hubUri.Port}...");
                 await _connection.StartAsync(CancellationToken.Token);
                 FireOnStatus("Connected to server");
                 await SendPacketToServer(new Packet(PacketTypes.ClientRegister, new ClientRegister(NetConstants.ClientRegisterString, Version, _clientUniqueToken)));
