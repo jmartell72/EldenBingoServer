@@ -133,6 +133,19 @@ namespace Neto.Client
                 .WithAutomaticReconnect()
                 .Build();
 
+            _connection.Reconnecting += error =>
+            {
+                FireOnStatus($"Connection lost, reconnecting: {error?.Message ?? "Unknown reason"}");
+                return Task.CompletedTask;
+            };
+
+            _connection.Reconnected += async _ =>
+            {
+                _disconnectRaised = false;
+                FireOnStatus("Reconnected to server");
+                await SendRegisterPacket();
+            };
+
             _connection.On<SignalRTransportPacket>("ReceivePacket", async transport =>
             {
                 var packet = FromTransportPacket(transport);
@@ -151,7 +164,7 @@ namespace Neto.Client
                 FireOnStatus($"Connecting to {hubUri.Host}:{hubUri.Port}...");
                 await _connection.StartAsync(CancellationToken.Token);
                 FireOnStatus("Connected to server");
-                await SendPacketToServer(new Packet(PacketTypes.ClientRegister, new ClientRegister(NetConstants.ClientRegisterString, Version, _clientUniqueToken)));
+                await SendRegisterPacket();
                 return ConnectionResult.Connected;
             }
             catch (Exception e)
@@ -188,6 +201,12 @@ namespace Neto.Client
                 CancellationToken.Cancel();
                 FireOnError($"Error sending message to server: {e.Message}");
             }
+        }
+
+        private async Task SendRegisterPacket()
+        {
+            await SendPacketToServer(new Packet(PacketTypes.ClientRegister,
+                new ClientRegister(NetConstants.ClientRegisterString, Version, _clientUniqueToken)));
         }
 
         private SignalRTransportPacket ToTransportPacket(Packet packet)
